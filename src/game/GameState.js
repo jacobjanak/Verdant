@@ -66,6 +66,43 @@ class GameState {
   }
 }
 
+// --- Shared lookup/mutation helpers -----------------------------------------
+// Small, allocation-light helpers used by the actions and turn-flow layers
+// (actions.js, turnFlow.js). Kept here next to the state they operate on so
+// every layer agrees on how to find and remove beasts.
+
+// Two-player game: the opponent is always the other index.
+function getOpponentIndex(playerIndex) {
+  return playerIndex === 0 ? 1 : 0;
+}
+
+// Find a beast instance owned by `player` (in either zone) by its instance id.
+// Returns undefined if it isn't in play.
+function findBeastInPlay(player, beastId) {
+  return (
+    player.frontline.find((b) => b.id === beastId) ||
+    player.backline.find((b) => b.id === beastId)
+  );
+}
+
+// Which zone a beast currently occupies for `player`: 'frontline', 'backline',
+// or null if it isn't in play.
+function getBeastZone(player, beast) {
+  if (player.frontline.includes(beast)) return 'frontline';
+  if (player.backline.includes(beast)) return 'backline';
+  return null;
+}
+
+// Remove a beast from play and send it to the graveyard. Its attached elements
+// ride along on `beast.elements` and go to the graveyard with it (GAME_DESIGN
+// §7). No-op if the beast isn't actually in play.
+function killBeast(player, beast) {
+  const zone = getBeastZone(player, beast);
+  if (!zone) return;
+  player[zone].splice(player[zone].indexOf(beast), 1);
+  player.graveyard.push(beast);
+}
+
 module.exports = {
   GameState,
   createPlayer,
@@ -73,4 +110,9 @@ module.exports = {
   // Combat helpers re-exported for convenience (defined in combat.js).
   rollDamageTier,
   calculateDamage,
+  // Shared lookup/mutation helpers.
+  getOpponentIndex,
+  findBeastInPlay,
+  getBeastZone,
+  killBeast,
 };
