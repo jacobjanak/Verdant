@@ -1,0 +1,20 @@
+{
+  "name": "verdant",
+  "version": "1.0.0",
+  "description": "Online TCG",
+  "homepage": "https://github.com/jacobjanak/Verdant#readme",
+  "bugs": {
+    "url": "https://github.com/jacobjanak/Verdant/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacobjanak/Verdant.git"
+  },
+  "license": "ISC",
+  "author": "Jacob Janak",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
