@@ -31,13 +31,28 @@ function isTree(target) {
   return target != null && target.worldTreeHealth !== undefined;
 }
 
-// Deal damage to any target with a health-like field: a beast (`health`) or a
-// player's World Tree (`worldTreeHealth`). Returns the damage dealt.
-function dealDamage(target, amount) {
-  if (target == null) return 0;
-  if (isTree(target)) target.worldTreeHealth -= amount;
-  else target.health -= amount;
-  return amount;
+// Deal damage from `caster` to `target`. dealDamage owns the WHOLE pipeline so
+// card abilities don't have to: it rolls a damage tier, applies the multiplier
+// to `baseDamage`, and subtracts the result from the target's health pool
+// (a beast's `health` or a player's World Tree `worldTreeHealth`).
+//
+// A caster can bias its own rolls by carrying a `DAMAGE_TIERS` override (see
+// beasts.js Rabbit / "Lucky"); when absent we use the global table. Overrides
+// must be DERIVED from the global table (map + multiply) so they can never
+// drift out of sync with it — see docs/MECHANICS.md.
+//
+// Returns the result of the hit: `{ damage, tier }`.
+function dealDamage(caster, target, baseDamage) {
+  if (target == null) return { damage: 0, tier: null };
+
+  const tiers = (caster && caster.DAMAGE_TIERS) || DAMAGE_TIERS;
+  const tier = rollDamageTier(tiers);
+  const damage = calculateDamage(baseDamage, tier);
+
+  if (isTree(target)) target.worldTreeHealth -= damage;
+  else target.health -= damage;
+
+  return { damage, tier: tier.name };
 }
 
 module.exports = { rollDamageTier, calculateDamage, isTree, dealDamage };

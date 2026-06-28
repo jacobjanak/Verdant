@@ -21,48 +21,24 @@ function createCardInstance(cardId) {
   const template = CARD_TEMPLATES[cardId];
   if (!template) throw new Error(`Unknown cardId: ${cardId}`);
 
-  const id = `${cardId}_${++instanceCounter}`;
+  // Shallow-copy every template field, then overwrite `id` with a unique
+  // instance id and tag the originating `cardId`. Functions (abilities,
+  // grantsAbility) and override tables (DAMAGE_TIERS) are immutable, so sharing
+  // the references the spread copied is safe and cheap. Only the per-copy
+  // MUTABLE fields below need fresh values.
+  const instance = {
+    ...template,
+    id: `${cardId}_${++instanceCounter}`,
+    cardId,
+  };
 
   if (template.type === 'beast') {
-    return {
-      type: 'beast',
-      id,
-      cardId,
-      name: template.name,
-      playCost: template.playCost,
-      maintenanceCost: template.maintenanceCost,
-      maxHealth: template.maxHealth,
-      health: template.maxHealth, // current health; damage persists across turns
-      abilities: template.abilities, // immutable fn defs — safe to share
-      elements: [], // element instances attached in play
-      hasActed: false, // used its action this turn?
-    };
+    instance.health = template.maxHealth; // current health; damage persists across turns
+    instance.elements = []; // element instances attached in play
+    instance.hasActed = false; // used its action this turn?
   }
 
-  if (template.type === 'element') {
-    return {
-      type: 'element',
-      id,
-      cardId,
-      name: template.name,
-      attachCost: template.attachCost,
-      grantsAbility: template.grantsAbility, // immutable fn def — safe to share
-    };
-  }
-
-  if (template.type === 'spell') {
-    return {
-      type: 'spell',
-      id,
-      cardId,
-      name: template.name,
-      cost: template.cost,
-      canUse: template.canUse,
-      use: template.use,
-    };
-  }
-
-  throw new Error(`Unknown card type for ${cardId}: ${template.type}`);
+  return instance;
 }
 
 // Build a fresh player. Beasts enter the backline; the frontline holds beasts
