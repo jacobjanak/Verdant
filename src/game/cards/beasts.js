@@ -10,8 +10,8 @@
 // `dealDamage`, which owns the roll + multiplier. A card customizes how its
 // hits roll by overriding a global (e.g. `DAMAGE_TIERS`) ON ITSELF, derived
 // from the global value. See docs/MECHANICS.md.
-const { DAMAGE_TIERS } = require('./constants');
-const { dealDamage } = require('./combat');
+const { DAMAGE_TIERS } = require('../constants');
+const { dealDamage } = require('../combat');
 
 const BEASTS = {
   bear: {

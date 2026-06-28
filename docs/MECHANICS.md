@@ -28,7 +28,7 @@ global definition. This doc is that pattern.
 
 Lucky makes the Rabbit crit more often. Instead of a special-case code path, the
 Rabbit carries its own damage-tier table, derived from the global one by tripling
-critical's weight (`src/game/beasts.js`):
+critical's weight (`src/game/cards/beasts.js`):
 
 ```js
 DAMAGE_TIERS: DAMAGE_TIERS.map((tier) =>

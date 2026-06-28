@@ -4,7 +4,7 @@
 // The granted ability is defined inline as a function-based object, exactly
 // like a beast's innate abilities — it belongs to this element, not a shared
 // ability table.
-const { dealDamage, isTree } = require('./combat');
+const { dealDamage, isTree } = require('../combat');
 
 const ELEMENTS = {
   fireball: {
