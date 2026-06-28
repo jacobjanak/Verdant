@@ -25,6 +25,16 @@ const { STARTING_HAND_SIZE } = require('./constants');
 const ok = () => ({ success: true });
 const fail = (error) => ({ success: false, error });
 
+// Every spend comes out of the World Tree, which is also the player's life total
+// (GAME_DESIGN.md §4.1). A player may NEVER spend themselves to death: an action
+// is affordable only if it leaves the tree strictly above 0. Spending to exactly
+// 0 is illegal, not a loss — the only way to reach 0 is the opponent's damage (or
+// unpayable maintenance). This is the single source of truth for affordability,
+// used by both the action guards and getLegalActions so they can't drift apart.
+function canAfford(player, cost) {
+  return cost < player.worldTreeHealth;
+}
+
 // Synthetic target id for a player's World Tree (it isn't backed by a card instance). The tree
 // IS the player object — it carries `worldTreeHealth`, so combat.isTree(player) is true and
 // dealDamage subtracts from the shared pool (GAME_DESIGN.md §4.1).
@@ -72,7 +82,7 @@ function playBeast(state, playerIndex, cardInstanceId) {
 
   const card = player.hand[idx];
   if (card.type !== 'beast') return fail('card is not a beast');
-  if (card.playCost > player.worldTreeHealth) return fail('not enough power to play this beast');
+  if (!canAfford(player, card.playCost)) return fail('not enough power to play this beast without dying');
 
   player.worldTreeHealth -= card.playCost;
   player.hand.splice(idx, 1);
@@ -95,11 +105,14 @@ function attachElement(state, playerIndex, elementCardId, targetBeastId) {
 
   const beast = findBeastInPlay(player, targetBeastId);
   if (!beast) return fail('target beast not in play');
-  if (card.attachCost > player.worldTreeHealth) return fail('not enough power to attach this element');
+  if (!canAfford(player, card.attachCost)) return fail('not enough power to attach this element without dying');
 
   player.worldTreeHealth -= card.attachCost;
   player.hand.splice(idx, 1);
   beast.elements.push(card); // kept on the beast so it joins it in the graveyard on death
+  // Safe to push onto beast.abilities: createCardInstance deep-clones the template,
+  // so this beast owns its abilities array — the granted ability lands on THIS beast
+  // only, not every copy of its species.
   if (card.grantsAbility) beast.abilities.push(card.grantsAbility);
   return ok();
 }
@@ -116,7 +129,7 @@ function castSpell(state, playerIndex, spellCardId, targetBeastId) {
 
   const card = player.hand[idx];
   if (card.type !== 'spell') return fail('card is not a spell');
-  if (card.cost > player.worldTreeHealth) return fail('not enough power to cast this spell');
+  if (!canAfford(player, card.cost)) return fail('not enough power to cast this spell without dying');
 
   const target = findBeastInPlay(player, targetBeastId);
   if (card.canUse && !card.canUse(state, player, target)) return fail('invalid spell target');
@@ -149,8 +162,10 @@ function moveBeast(state, playerIndex, beastId) {
 }
 
 // Valid target ids for a beast's ability, honoring the zone targeting rules (GAME_DESIGN.md
-// §4.2): a backline beast can only strike the enemy frontline; a frontline beast strikes the
-// enemy backline or the World Tree directly. The ability's own `canUse` then has final say.
+// §4.2): a backline beast can ONLY strike the enemy frontline; a frontline beast strikes the
+// enemy backline OR the World Tree directly. There is no fall-through — a backline beast with
+// no enemy frontline simply has no targets and can't reach the tree. The ability's own `canUse`
+// then has final say.
 function getValidTargets(state, playerIndex, beastId, abilityIndex) {
   const player = state.players[playerIndex];
   const beast = findBeastInPlay(player, beastId);
@@ -193,7 +208,7 @@ function useAbility(state, playerIndex, beastId, abilityIndex, targetId) {
   if (ability.passive) return fail('cannot actively use a passive ability');
 
   const cost = ability.cost || 0;
-  if (cost > player.worldTreeHealth) return fail('not enough power to use this ability');
+  if (!canAfford(player, cost)) return fail('not enough power to use this ability without dying');
 
   if (!getValidTargets(state, playerIndex, beastId, abilityIndex).includes(targetId)) {
     return fail('invalid target');
@@ -271,13 +286,13 @@ function getLegalActions(state) {
   // Cards in hand: play beasts, attach elements, cast spells.
   const inPlay = [...player.frontline, ...player.backline];
   player.hand.forEach((card) => {
-    if (card.type === 'beast' && card.playCost <= player.worldTreeHealth) {
+    if (card.type === 'beast' && canAfford(player, card.playCost)) {
       actions.push({ type: 'playBeast', cardId: card.id });
-    } else if (card.type === 'element' && card.attachCost <= player.worldTreeHealth) {
+    } else if (card.type === 'element' && canAfford(player, card.attachCost)) {
       inPlay.forEach((beast) => {
         actions.push({ type: 'attachElement', cardId: card.id, targetBeastId: beast.id });
       });
-    } else if (card.type === 'spell' && card.cost <= player.worldTreeHealth) {
+    } else if (card.type === 'spell' && canAfford(player, card.cost)) {
       inPlay.forEach((beast) => {
         if (!card.canUse || card.canUse(state, player, beast)) {
           actions.push({ type: 'castSpell', cardId: card.id, targetBeastId: beast.id });
@@ -292,7 +307,7 @@ function getLegalActions(state) {
     actions.push({ type: 'moveBeast', beastId: beast.id });
     beast.abilities.forEach((ability, abilityIndex) => {
       if (!ability || ability.passive) return;
-      if ((ability.cost || 0) > player.worldTreeHealth) return;
+      if (!canAfford(player, ability.cost || 0)) return;
       getValidTargets(state, playerIndex, beast.id, abilityIndex).forEach((targetId) => {
         actions.push({ type: 'useAbility', beastId: beast.id, abilityIndex, targetId });
       });
