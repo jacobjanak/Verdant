@@ -1,18 +1,27 @@
-const { STARTING_WORLD_TREE_HEALTH, DAMAGE_TIERS } = require('./constants');
+const { STARTING_WORLD_TREE_HEALTH } = require('./constants');
 const { CARD_TEMPLATES } = require('./cards');
+const { rollDamageTier, calculateDamage } = require('./combat');
 
 // Monotonic counter for unique card instance ids. Cheap and fast — we run
 // thousands of self-play games, so we avoid UUIDs and other allocation-heavy
 // id schemes.
 let instanceCounter = 0;
 
-// Create a concrete in-game card instance from a template. Returns a plain
-// object (no class hierarchy) sized to the card's type.
+// Create a concrete in-game card instance from a template.
+//
+// Why instances at all (and not just use the template directly)? The same card
+// can be in play multiple times at once — two Bears, say — and each copy needs
+// its OWN mutable state: current health, the elements attached to it, whether
+// it has acted this turn, and a unique id so abilities can target it. The
+// template is the shared, immutable definition; mutating it would clobber every
+// copy. So templates stay frozen-in-spirit and we spin up a lightweight plain
+// object (no class hierarchy) per copy. Ability definitions, by contrast, are
+// immutable functions, so instances just reference the template's abilities.
 function createCardInstance(cardId) {
   const template = CARD_TEMPLATES[cardId];
   if (!template) throw new Error(`Unknown cardId: ${cardId}`);
 
-  const id = `${cardId}_${String(++instanceCounter).padStart(2, '0')}`;
+  const id = `${cardId}_${++instanceCounter}`;
 
   if (template.type === 'beast') {
     return {
@@ -23,10 +32,10 @@ function createCardInstance(cardId) {
       playCost: template.playCost,
       maintenanceCost: template.maintenanceCost,
       maxHealth: template.maxHealth,
-      health: template.maxHealth, // current health (for in-play beasts)
-      abilities: [...template.abilities], // ability ids
-      elements: [], // attached element ids (for in-play beasts)
-      hasActed: false, // used this turn?
+      health: template.maxHealth, // current health; damage persists across turns
+      abilities: template.abilities, // immutable fn defs — safe to share
+      elements: [], // element instances attached in play
+      hasActed: false, // used its action this turn?
     };
   }
 
@@ -37,7 +46,7 @@ function createCardInstance(cardId) {
       cardId,
       name: template.name,
       attachCost: template.attachCost,
-      grantsAbility: template.grantsAbility,
+      grantsAbility: template.grantsAbility, // immutable fn def — safe to share
     };
   }
 
@@ -48,8 +57,8 @@ function createCardInstance(cardId) {
       cardId,
       name: template.name,
       cost: template.cost,
-      effect: template.effect,
-      healAmount: template.healAmount,
+      canUse: template.canUse,
+      use: template.use,
     };
   }
 
@@ -70,30 +79,6 @@ function createPlayer() {
   };
 }
 
-// Weighted random damage tier. critBonus (e.g. from the Lucky ability) adds
-// extra weight to the critical tier, raising its share of the roll.
-function rollDamageTier(critBonus = 0) {
-  let totalWeight = 0;
-  for (const tier of DAMAGE_TIERS) totalWeight += tier.weight;
-
-  const extraCritWeight = critBonus * totalWeight;
-  let roll = Math.random() * (totalWeight + extraCritWeight);
-
-  for (const tier of DAMAGE_TIERS) {
-    const weight = tier.name === 'critical' ? tier.weight + extraCritWeight : tier.weight;
-    if (roll < weight) return tier;
-    roll -= weight;
-  }
-
-  // Floating-point safety net — return the last tier.
-  return DAMAGE_TIERS[DAMAGE_TIERS.length - 1];
-}
-
-// Apply a tier's multiplier to a base damage value, rounded to an integer.
-function calculateDamage(baseDamage, tier) {
-  return Math.round(baseDamage * tier.multiplier);
-}
-
 // Single object holding all game state. Kept flat and mutable for speed.
 class GameState {
   constructor() {
@@ -109,6 +94,7 @@ module.exports = {
   GameState,
   createPlayer,
   createCardInstance,
+  // Combat helpers re-exported for convenience (defined in combat.js).
   rollDamageTier,
   calculateDamage,
 };

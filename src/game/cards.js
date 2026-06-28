@@ -1,11 +1,11 @@
-// Hardcoded card templates for testing. A template holds the shared, immutable
-// definition of a card; createCardInstance() (in GameState.js) clones one of
-// these into a concrete in-game instance with a unique id.
-const CARD_TEMPLATES = {
-  bear: { type: 'beast', name: 'Bear', playCost: 50, maintenanceCost: 10, maxHealth: 200, abilities: ['maul'] },
-  rabbit: { type: 'beast', name: 'Rabbit', playCost: 20, maintenanceCost: 5, maxHealth: 80, abilities: ['nibble', 'lucky'] },
-  fireball: { type: 'element', name: 'Fireball', attachCost: 30, grantsAbility: 'fireball_attack' },
-  heal: { type: 'spell', name: 'Healing Light', cost: 20, effect: 'heal_beast', healAmount: 50 },
-};
+// Card registry. The actual definitions live in one file per card type —
+// beasts.js, elements.js, spells.js (each card carries its own abilities). This
+// file just merges them into a single id-keyed map so a card can be looked up
+// by id (e.g. by createCardInstance in GameState.js).
+const { BEASTS } = require('./beasts');
+const { ELEMENTS } = require('./elements');
+const { SPELLS } = require('./spells');
 
-module.exports = { CARD_TEMPLATES };
+const CARD_TEMPLATES = { ...BEASTS, ...ELEMENTS, ...SPELLS };
+
+module.exports = { CARD_TEMPLATES, BEASTS, ELEMENTS, SPELLS };
