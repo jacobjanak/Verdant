@@ -42,6 +42,26 @@ function createTestDeck() {
   return deck;
 }
 
+// Aquatic-themed deck: 8 unique species, each appearing 4 times, plus spells.
+function createAquaticDeck() {
+  const beasts = ['shark', 'octopus', 'dolphin', 'jellyfish', 'crab', 'electric_eel', 'sea_turtle', 'anglerfish'];
+  const deck = [];
+  for (let i = 0; i < 4; i++) beasts.forEach((id) => deck.push(id));
+  for (let i = 0; i < 8; i++) deck.push('fireball');
+  for (let i = 0; i < 8; i++) deck.push('heal');
+  return deck;
+}
+
+// Cat-themed deck: 8 unique felines, each appearing 4 times, plus spells.
+function createCatDeck() {
+  const beasts = ['lion', 'tiger', 'cheetah', 'leopard', 'lynx', 'house_cat', 'serval', 'caracal'];
+  const deck = [];
+  for (let i = 0; i < 4; i++) beasts.forEach((id) => deck.push(id));
+  for (let i = 0; i < 8; i++) deck.push('fireball');
+  for (let i = 0; i < 8; i++) deck.push('heal');
+  return deck;
+}
+
 // Dispatch a single legal action object (as produced by getLegalActions) to the
 // matching action function. The acting player is always the current player, so
 // we don't trust a playerIndex off the action object except for mulligan, where
@@ -108,7 +128,7 @@ function runBatch(numGames, options = {}) {
   };
 
   for (let i = 0; i < numGames; i++) {
-    const { winner, turnCount } = playGame(createTestDeck(), createTestDeck(), options);
+    const { winner, turnCount } = playGame(createAquaticDeck(), createCatDeck(), options);
     if (winner === 0) stats.player1Wins++;
     else if (winner === 1) stats.player2Wins++;
     else stats.draws++;
@@ -121,6 +141,8 @@ function runBatch(numGames, options = {}) {
 
 module.exports = {
   createTestDeck,
+  createAquaticDeck,
+  createCatDeck,
   executeAction,
   playGame,
   runBatch,
