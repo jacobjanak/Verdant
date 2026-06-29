@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Verdant Auto Player</title>
+</head>
+<body>
+  <h1>Verdant Auto Player</h1>
+
+  <div>
+    <button id="btn-new" onclick="newGame()">New Game</button>
+    <button id="btn-step" onclick="step()" disabled>Next Step</button>
+  </div>
+
+  <h2>Game State</h2>
+  <div id="game-state">No game in progress.</div>
+
+  <h2>Last Action</h2>
+  <div id="last-action">—</div>
+
+  <h2>Action History</h2>
+  <textarea id="history" rows="15" cols="80" readonly></textarea>
+
+  <script>
+    let gameOver = false;
+
+    function renderState(data) {
+      const s = data.state;
+      if (!s) {
+        document.getElementById('game-state').textContent = 'No game in progress.';
+        return;
+      }
+
+      const phase = s.phase === 'mulligan' ? 'Mulligan' : s.phase === 'gameOver' ? 'Game Over' : 'Playing';
+      const current = s.gameOver ? '' : ` | Current turn: Player ${s.currentPlayer + 1}`;
+
+      let html = `<p><strong>Turn:</strong> ${s.turn} | <strong>Phase:</strong> ${phase}${current}</p>`;
+
+      html += `<table border="1" cellpadding="4">`;
+      html += `<tr><th></th><th>Player 1</th><th>Player 2</th></tr>`;
+      html += `<tr><td>World Tree HP</td><td>${s.p1Health}</td><td>${s.p2Health}</td></tr>`;
+      html += `<tr><td>Hand size</td><td>${s.p1HandSize}</td><td>${s.p2HandSize}</td></tr>`;
+      html += `<tr><td>Beasts in play</td><td>${s.p1Beasts.length}</td><td>${s.p2Beasts.length}</td></tr>`;
+      html += `</table>`;
+
+      if (s.p1Beasts.length > 0 || s.p2Beasts.length > 0) {
+        html += `<h3>Beasts</h3>`;
+        html += `<table border="1" cellpadding="4">`;
+        html += `<tr><th>Owner</th><th>Name</th><th>Zone</th><th>HP</th><th>Acted</th></tr>`;
+        s.p1Beasts.forEach(b => {
+          html += `<tr><td>P1</td><td>${b.name}</td><td>${b.zone}</td><td>${b.health}/${b.maxHealth}</td><td>${b.hasActed ? 'yes' : 'no'}</td></tr>`;
+        });
+        s.p2Beasts.forEach(b => {
+          html += `<tr><td>P2</td><td>${b.name}</td><td>${b.zone}</td><td>${b.health}/${b.maxHealth}</td><td>${b.hasActed ? 'yes' : 'no'}</td></tr>`;
+        });
+        html += `</table>`;
+      }
+
+      if (s.gameOver) {
+        const winner = s.winner !== null ? `Player ${s.winner + 1}` : 'Nobody (draw)';
+        html += `<p><strong>GAME OVER — Winner: ${winner}</strong></p>`;
+      }
+
+      document.getElementById('game-state').innerHTML = html;
+    }
+
+    function appendHistory(log) {
+      const ta = document.getElementById('history');
+      ta.value = log + '\n' + ta.value;
+    }
+
+    async function newGame() {
+      document.getElementById('history').value = '';
+      document.getElementById('last-action').textContent = '—';
+      gameOver = false;
+
+      const res = await fetch('/api/game/new', { method: 'POST' });
+      const data = await res.json();
+
+      renderState(data);
+      document.getElementById('last-action').textContent = data.log;
+      appendHistory(data.log);
+      document.getElementById('btn-step').disabled = false;
+    }
+
+    async function step() {
+      if (gameOver) return;
+
+      const res = await fetch('/api/game/step', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
+      renderState(data);
+      document.getElementById('last-action').textContent = data.log;
+      appendHistory(data.log);
+
+      if (data.gameOver) {
+        gameOver = true;
+        document.getElementById('btn-step').disabled = true;
+      }
+    }
+  </script>
+</body>
+</html>
