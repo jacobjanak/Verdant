@@ -62,7 +62,7 @@ Each player controls a frontline and a backline.
 | Zone | Can attack | Notes |
 |------|-----------|-------|
 | Backline | Opponent's **frontline** only | Beasts enter play here |
-| Frontline | Opponent's **backline** or **World Tree** | Aggressive position |
+| Frontline | Opponent's **frontline**, **backline**, or **World Tree** | Aggressive position |
 
 - Beasts always **enter on the backline**.
 - A beast may **move** between frontline and backline, but doing so **consumes its action for

@@ -163,9 +163,9 @@ function moveBeast(state, playerIndex, beastId) {
 
 // Valid target ids for a beast's ability, honoring the zone targeting rules (GAME_DESIGN.md
 // §4.2): a backline beast can ONLY strike the enemy frontline; a frontline beast strikes the
-// enemy backline OR the World Tree directly. There is no fall-through — a backline beast with
-// no enemy frontline simply has no targets and can't reach the tree. The ability's own `canUse`
-// then has final say.
+// enemy frontline OR backline (including the World Tree, which sits on the backline). There is
+// no fall-through — a backline beast with no enemy frontline simply has no targets and can't
+// reach the backline or tree. The ability's own `canUse` then has final say.
 function getValidTargets(state, playerIndex, beastId, abilityIndex) {
   const player = state.players[playerIndex];
   const beast = findBeastInPlay(player, beastId);
@@ -182,6 +182,7 @@ function getValidTargets(state, playerIndex, beastId, abilityIndex) {
   if (zone === 'backline') {
     opponent.frontline.forEach((b) => candidates.push(b.id));
   } else {
+    opponent.frontline.forEach((b) => candidates.push(b.id));
     opponent.backline.forEach((b) => candidates.push(b.id));
     candidates.push(treeTargetId(opponentIndex));
   }
